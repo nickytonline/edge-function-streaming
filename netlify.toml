@@ -1,0 +1,6 @@
+[build]
+  publish = "static/"
+
+[[edge_functions]]
+function = "streaming-test"
+path = "/*"
