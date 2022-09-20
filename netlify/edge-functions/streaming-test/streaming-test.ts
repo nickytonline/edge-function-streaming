@@ -1,24 +1,31 @@
 import type { Context } from "https://edge.netlify.com";
 
-export default async (_req: Request, { geo, next }: Context) => {
+export default async (_req: Request, { next, log }: Context) => {
   const res = await next();
-  const stream = res.body
-    ?.pipeThrough(new TextDecoderStream())
-    .pipeThrough(
-      new TransformStream({
-        transform(chunk, controller) {
-          controller.enqueue(
-            chunk.replaceAll(
-              "Original Content",
-              `Streamed Content from ${geo.city}, ${geo.subdivision?.name}, ${geo.country?.name}`,
-            ),
-          );
-        },
-      }),
-    )
-    .pipeThrough(new TextEncoderStream());
 
-  res.headers.delete("content-length");
+  let timer: number | undefined = undefined;
+  let count = 0
+  const body = new ReadableStream({
+    start(controller) {
+      timer = setInterval(() => {
+        const message = `<p>It is ${new Date().toISOString()}</p>\n`;
+        log(message)
+        controller.enqueue(new TextEncoder().encode(message));
 
-  return new Response(stream, res);
+        if (count > 10) {
+          clearInterval(timer);
+          controller.close();
+        }
+
+        count++;
+      }, 300);
+    },
+    cancel() {
+      if (timer !== undefined) {
+        clearInterval(timer);
+      }
+    },
+  });
+
+  return new Response(body, res);
 };
